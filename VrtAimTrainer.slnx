@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/VrtAimTrainer.Core/VrtAimTrainer.Core.csproj" />
+    <Project Path="src/VrtAimTrainer.Desktop/VrtAimTrainer.Desktop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/VrtAimTrainer.Core.Tests/VrtAimTrainer.Core.Tests.csproj" />
+  </Folder>
+</Solution>

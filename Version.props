@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <Product>VrtAimTrainer</Product>
+    <Company>VrtAimTrainer</Company>
+    <Authors>VrtAimTrainer</Authors>
+    <Description>Desktop aim trainer focused on precise reaction measurement, configurable sheets, and local analytics.</Description>
+    <Version>0.5.2</Version>
+    <AssemblyVersion>$(Version).0</AssemblyVersion>
+    <FileVersion>$(Version).0</FileVersion>
+    <InformationalVersion>$(Version)</InformationalVersion>
+  </PropertyGroup>
+</Project>

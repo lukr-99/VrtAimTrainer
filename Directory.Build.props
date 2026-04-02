@@ -1,0 +1,11 @@
+<Project>
+  <Import Project="Version.props" Condition="Exists('Version.props')" />
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <LangVersion>preview</LangVersion>
+  </PropertyGroup>
+</Project>
