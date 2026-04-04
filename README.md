@@ -1,21 +1,34 @@
 # VrtAimTrainer
 
-Native C# desktop aim trainer scaffolded as a BallSheet-style remake with:
+![Version](https://img.shields.io/badge/version-0.5.2-blue)
+![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+![.NET](https://img.shields.io/badge/.NET-10-purple)
+
+Native C# desktop aim trainer with:
 
 - a low-latency `Raylib-cs` gameplay shell
 - a testable core simulation for scoring, spawning, and session lifecycle
 - a plugin-style gamemode catalog with built-in and external mode discovery
-- built-in training presets with a staged workflow before each run
+- built-in training presets for every mode
 - local JSON session history for improvement tracking
 - richer per-hit telemetry for cursor travel, path efficiency, health, and score flow
-- persisted shell state for live settings, draft settings, preset selection, and display profile
+- persisted shell state for live settings, preset selection, and display profile
 - an AimLabs-style top-nav and control hub for play, modes, presets, run setup, display, and analytics
 - branded app/window icons and a versioned Windows installer flow
 - in-app reaction graph and recent-session trend panel
 
+## Requirements
+
+- **OS**: Windows (x64)
+- **.NET SDK**: 10.x (`global.json` pins to `10.0.201`, `rollForward: latestPatch`)
+
 ## Current modes
 
-`BallSheet Classic` ships as the first built-in plugin-backed mode and preserves the core native behavior from BallSheetOGL:
+All modes ship as part of the built-in `VRT Built-In Modes` plugin.
+
+### BallSheet Classic
+
+Pressure-driven reactive aim on a free-spawn sheet:
 
 - touch the target to start
 - pressure drains health over time
@@ -25,25 +38,88 @@ Native C# desktop aim trainer scaffolded as a BallSheet-style remake with:
 - the sheet targets a `1200px` arena and auto-fits to the active display mode
 - spawns enforce a minimum distance from the last target by default
 
+### VRT Speed
+
+Closer reactive spawns with a 30-second fixed-time round for fast VRT cleanup — same BallSheet Classic mechanics, tuned for pace.
+
+### GridShot modes
+
+Fixed-time grid drills where targets appear only on cell centres. Three variants ship out of the box:
+
+| Mode | Grid | Live targets | Default round |
+|------|------|-------------|---------------|
+| `3x3 Quick` | 3 × 3 | 1 | 30 s |
+| `5x5 Quick` | 5 × 5 | 1 | 30 s |
+| `5x5 Triple` | 5 × 5 | 3 | 45 s |
+
+## Built-in presets
+
+Each mode ships with a set of named presets accessible from the `Presets` page.
+
+**BallSheet Classic**
+
+| Preset | Focus |
+|--------|-------|
+| BallSheet Classic Default | Balanced baseline |
+| VRT Reactive Wide | Wide-sheet reactive reps with more spread and tempo |
+| Micro Corrections | Smaller targets, tighter punishment for micro-adjustments |
+| Smoothness Lanes | Larger travel lanes, lower pressure for full-sheet tracking |
+| Endurance Builder | Longer reactive runs with more health |
+
+**VRT Speed**
+
+| Preset | Focus |
+|--------|-------|
+| VRT Speed Default | Balanced baseline |
+| Close Burst | Faster short-range spam for cleanup speed |
+| Micro Rush | Smaller targets, higher pace for close-quarters corrections |
+| Stable 30 | Softer punishment for repeatable 30-second reps |
+
+**3x3 Quick**
+
+| Preset | Focus |
+|--------|-------|
+| 3x3 Quick Default | Balanced baseline |
+| Snap Lines | Bigger targets, shorter rounds for raw lane-switch speed |
+| Control Hold | Precise confirmations with a calmer tempo |
+
+**5x5 Quick**
+
+| Preset | Focus |
+|--------|-------|
+| 5x5 Quick Default | Balanced baseline |
+| Precision Ladder | Smaller balls, sharper threshold for clean precision reps |
+| Tempo Builder | Larger targets with more score throughput for pace building |
+
+**5x5 Triple**
+
+| Preset | Focus |
+|--------|-------|
+| 5x5 Triple Default | Balanced baseline |
+| Selective Chaos | Higher pressure triple-target work for faster target triage |
+| Endurance Grid | Longer blocks with larger targets to sustain accuracy |
+
 ## Controls
 
-- `TAB` cycle the control-hub pages
-- `F1` jump straight to analytics
-- `R` reset the live controller to pregame
-- `E` finish the current run and show results
-- `F11` toggle between borderless fullscreen and the default 1080p window
-- `Esc` open a quit warning instead of closing instantly
+| Key | Action |
+|-----|--------|
+| `TAB` | Cycle the control-hub pages |
+| `F1` | Jump straight to Analytics |
+| `R` | Reset the live controller to pregame |
+| `E` | Finish the current run and show results |
+| `F11` | Toggle between borderless fullscreen and the default 1080p window |
+| `Esc` | Open a quit warning instead of closing instantly |
 
 ## Menus
 
-- `Play` shows the live vs staged workflow, applies staged changes, and surfaces local benchmarks
-- `Modes` stages built-in and external plugin-backed gamemodes without interrupting the live run
-- `Presets` stages built-in mode presets before you apply them on `Play`
-- `Run` edits cursor, score, pressure, health, and cheese threshold in the staged draft
-- `Mouse` tunes live gameplay sensitivity, per-axis scaling, and vertical inversion without touching presets
-- `Sheet` edits sheet width, sheet height, ball size, ball spread, and edge padding in the staged draft
-- `Display` switches between `1080p`, `1440p`, and borderless fullscreen
-- `Analytics` shows the reaction trend and recent saved sessions
+- `Play` — surfaces local benchmarks and reset/finish controls for the active run
+- `Modes` — switch between built-in and external plugin-backed gamemodes; change takes effect immediately
+- `Presets` — apply a named preset for the active mode; change takes effect immediately
+- `Run Setup` — tune cursor size, score per hit, pressure, starting health, round time, and cheese threshold; slider changes apply on release
+- `Mouse` — tune live gameplay sensitivity, per-axis scaling, and vertical inversion without touching presets
+- `Sheet` — tune sheet width, sheet height, ball size, ball spread, edge padding, and top/bottom safe padding; slider changes apply on release
+- `Display` — switch between `1080p`, `1440p`, and borderless fullscreen
+- `Analytics` — view the reaction trend and recent saved sessions
 
 ## Versioning
 
@@ -136,10 +212,17 @@ Each saved session includes:
 - per-hit samples with elapsed time, reaction time, score contribution, spawn distance, cursor travel, health flow, and score flow
 - session telemetry for median and p95 reaction, total cursor travel, average spawn distance, and path efficiency
 
-The staged workflow keeps draft changes out of the live controller until you apply them on the `Play` page, so changing presets, sheet geometry, or scoring no longer mutates an active run.
+## Writing a custom gamemode plugin
+
+Any assembly that exports a public, no-arg class implementing `IAimGamemodePlugin` (from `VrtAimTrainer.Core`) is loaded automatically from the plugins directory. Drop the compiled `.dll` (and any dependencies) into:
+
+`%LOCALAPPDATA%\VrtAimTrainer\Plugins\<your-plugin-folder>\`
+
+The app discovers all matching assemblies on startup and registers their gamemodes alongside the built-in ones. Duplicate gamemode IDs are skipped with a load-failure notice shown on the `Modes` page.
 
 ## Structure
 
-- `src/VrtAimTrainer.Core` simulation, analytics, and persistence
-- `src/VrtAimTrainer.Desktop` rendering loop and immediate-mode UI
-- `tests/VrtAimTrainer.Core.Tests` scoring and spawn-rule coverage
+- `src/VrtAimTrainer.Core` — simulation, analytics, persistence, and all gamemode logic (BallSheet Classic, VRT Speed, GridShot)
+- `src/VrtAimTrainer.Desktop` — rendering loop, immediate-mode UI, plugin loader, and installer tooling
+- `tests/VrtAimTrainer.Core.Tests` — scoring, spawn-rule, analytics, and GridShot session coverage
+- `tools/install` — PowerShell publish, install, switch, and uninstall scripts
