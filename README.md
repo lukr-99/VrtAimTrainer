@@ -226,3 +226,8 @@ The app discovers all matching assemblies on startup and registers their gamemod
 - `src/VrtAimTrainer.Desktop` — rendering loop, immediate-mode UI, plugin loader, and installer tooling
 - `tests/VrtAimTrainer.Core.Tests` — scoring, spawn-rule, analytics, and GridShot session coverage
 - `tools/install` — PowerShell publish, install, switch, and uninstall scripts
+
+
+## License
+
+[PolyForm Noncommercial 1.0.0](LICENSE.md) — free for personal and non-commercial use; selling or other commercial use requires permission.
