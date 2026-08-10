@@ -116,10 +116,19 @@ Each mode ships with a set of named presets accessible from the `Presets` page.
 - `Modes` — switch between built-in and external plugin-backed gamemodes; change takes effect immediately
 - `Presets` — apply a named preset for the active mode; change takes effect immediately
 - `Run Setup` — tune cursor size, score per hit, pressure, starting health, round time, and cheese threshold; slider changes apply on release
-- `Mouse` — tune live gameplay sensitivity, per-axis scaling, and vertical inversion without touching presets
+- `Mouse` — choose the aim response (Linear or Projected), tune sensitivity or `cm/360` + `DPI` + `FOV` + aspect ratio, per-axis scaling, and vertical inversion; applies live without touching presets
 - `Sheet` — tune sheet width, sheet height, ball size, ball spread, edge padding, and top/bottom safe padding; slider changes apply on release
 - `Display` — switch between `1080p`, `1440p`, and borderless fullscreen
 - `Analytics` — view the reaction trend and recent saved sessions
+
+## Aim input
+
+Aiming reads **raw mouse input** on Windows (via the Raw Input API), so it is unaffected by the "Enhance pointer precision" pointer-acceleration setting: a fast flick always covers proportionally more distance than a slow one, never disproportionately more. During a run the OS cursor is locked and hidden; outside a run it is free so the menus stay usable.
+
+Two aim response modes are selectable on the `Mouse` page:
+
+- **Linear** — a raw 1:1 mapping. A fixed number of mouse counts always moves the crosshair the same distance, anywhere on the sheet, independent of sheet and display size.
+- **Projected** — simulates an FPS camera: raw counts drive a constant angular yaw/pitch that is projected onto the sheet, so the crosshair speeds up toward the edges exactly like a real game. Tuned with `cm/360` + mouse `DPI` (to match your game's hand speed), horizontal `FOV`, and aspect ratio. A monitor-distance coefficient field is stored for future zoom/scope scenarios.
 
 ## Versioning
 
@@ -218,11 +227,19 @@ Any assembly that exports a public, no-arg class implementing `IAimGamemodePlugi
 
 `%LOCALAPPDATA%\VrtAimTrainer\Plugins\<your-plugin-folder>\`
 
-The app discovers all matching assemblies on startup and registers their gamemodes alongside the built-in ones. Duplicate gamemode IDs are skipped with a load-failure notice shown on the `Modes` page.
+A plugin's `CreateGamemodes()` returns one or more `IAimGamemode`s. You rarely need a custom `IAimGamemode` implementation — the built-in `AimGamemode` is fully data-driven. Construct one with:
+
+- an id, display name, and description;
+- default `AimSessionSettings`;
+- a target-provider factory (`IRandomSource -> ITargetProvider`) that defines the mode's mechanic — reuse the built-in `FreeSpawnTargetProvider` / `GridTargetProvider`, or implement your own `ITargetProvider` for a brand-new mechanic;
+- optional presets (a `GamemodePreset` list) shipped with the mode, surfaced automatically on the `Presets` page;
+- optional `IPressureModel` / `IScoringRule` (these default to the built-in logarithmic pressure and cheese-corrected scoring).
+
+The session loop — timing, health, scoring, reaction/analytics, and cursor travel — is shared by `AimSessionEngine`; a mode only supplies the parts that differ, and the settings UI renders itself from the parameter schema. The app discovers all matching assemblies on startup and registers their gamemodes (and their presets) alongside the built-in ones. Duplicate gamemode IDs are skipped with a load-failure notice shown on the `Modes` page.
 
 ## Structure
 
-- `src/VrtAimTrainer.Core` — simulation, analytics, persistence, and all gamemode logic (BallSheet Classic, VRT Speed, GridShot)
+- `src/VrtAimTrainer.Core` — the shared simulation engine (`AimSessionEngine` + `ITargetProvider`/`IPressureModel`/`IScoringRule`), the data-driven `AimGamemode` and `BuiltInGamemodes`, the settings parameter schema, analytics, and persistence
 - `src/VrtAimTrainer.Desktop` — rendering loop, immediate-mode UI, plugin loader, and installer tooling
 - `tests/VrtAimTrainer.Core.Tests` — scoring, spawn-rule, analytics, and GridShot session coverage
 - `tools/install` — PowerShell publish, install, switch, and uninstall scripts
