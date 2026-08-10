@@ -95,39 +95,6 @@ public sealed partial class TrainerApplication
         _recentSessions.AddRange(_historyStore.LoadRecent(12));
     }
 
-    private void UpdateCursorVisibility(Vector2 mousePosition, ArenaRenderTransform arenaTransform)
-    {
-        if (_isExitPromptVisible)
-        {
-            if (_cursorHidden)
-            {
-                Raylib.ShowCursor();
-                _cursorHidden = false;
-            }
-
-            return;
-        }
-
-        var shouldHideCursor =
-            _frameState.Phase != SessionPhase.PostGame &&
-            Raylib.CheckCollisionPointRec(mousePosition, arenaTransform.Bounds);
-
-        if (shouldHideCursor == _cursorHidden)
-        {
-            return;
-        }
-
-        if (shouldHideCursor)
-        {
-            Raylib.HideCursor();
-            _cursorHidden = true;
-            return;
-        }
-
-        Raylib.ShowCursor();
-        _cursorHidden = false;
-    }
-
     private void ApplyDisplayProfile(DisplayProfile profile)
     {
         if (profile.IsFullscreen)

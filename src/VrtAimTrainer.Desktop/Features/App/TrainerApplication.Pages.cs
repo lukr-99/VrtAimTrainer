@@ -523,67 +523,111 @@ public sealed partial class TrainerApplication
             3);
     }
 
+    private static readonly (float Width, float Height, string Label)[] AspectPresets =
+    [
+        (16f, 9f, "16:9"),
+        (16f, 10f, "16:10"),
+        (21f, 9f, "21:9"),
+        (4f, 3f, "4:3"),
+        (1f, 1f, "1:1 (Square)"),
+    ];
+
     private void DrawMouseSettingsPage(Rectangle bounds)
     {
-        const string introText = "Gameplay mouse tuning is app-level. Sensitivity changes apply live during active runs and save automatically with the rest of the shell state.";
+        const string introText = "Mouse tuning is app-level, applies live during a run, and saves automatically. Linear is a raw 1:1 map; Projected simulates an FPS camera so aim speeds up toward the edges.";
 
         DrawSectionHeader(bounds, "Mouse");
-        var cursor = CreatePageCursor(bounds, introText, 16, 3);
-        var currentSettings = _mouseSettings;
+        var cursor = CreatePageCursor(bounds, introText, 15, 4);
+        var current = _mouseSettings;
 
-        var sensitivity = _ui.Slider(
-            "mouse-sensitivity",
-            cursor.Take(46f),
-            "Sensitivity",
-            currentSettings.Sensitivity,
-            0.20f,
-            3f,
-            "0.00",
+        var projected = _ui.Toggle(
+            "mouse-projected",
+            cursor.Take(42f),
+            "Projected (game-like) aim",
+            current.Mode == AimResponseMode.Projected,
             CardAlt,
             Accent,
             Text);
+        var mode = projected ? AimResponseMode.Projected : AimResponseMode.Linear;
+        cursor.Space(ControlHubGap);
 
-        cursor.Space(8f);
+        var sensitivity = current.Sensitivity;
+        var cmPer360 = current.CentimetersPer360;
+        var mouseDpi = current.MouseDpi;
+        var horizontalFov = current.HorizontalFovDegrees;
+        var monitorCoefficient = current.MonitorDistanceCoefficient;
+        var aspectWidth = current.AspectWidth;
+        var aspectHeight = current.AspectHeight;
+
+        if (mode == AimResponseMode.Projected)
+        {
+            cmPer360 = _ui.Slider(
+                "mouse-cm360", cursor.Take(46f), "cm / 360 (match your game)",
+                current.CentimetersPer360, 5f, 80f, "0.0", CardAlt, Accent, Text);
+
+            cursor.Space(8f);
+            mouseDpi = (int)MathF.Round(_ui.Slider(
+                "mouse-dpi", cursor.Take(46f), "Mouse DPI",
+                current.MouseDpi, 100f, 3200f, "0", CardAlt, Accent, Text));
+
+            cursor.Space(8f);
+            horizontalFov = _ui.Slider(
+                "mouse-hfov", cursor.Take(46f), "Horizontal FOV (deg)",
+                current.HorizontalFovDegrees, 60f, 150f, "0", CardAlt, Accent, Text);
+
+            cursor.Space(8f);
+            monitorCoefficient = _ui.Slider(
+                "mouse-mdc", cursor.Take(46f), "Monitor distance coeff",
+                current.MonitorDistanceCoefficient, 0.10f, 2f, "0.00", CardAlt, Accent, Text);
+
+            cursor.Space(8f);
+            if (_ui.Button(
+                    "mouse-aspect",
+                    cursor.Take(42f),
+                    $"Aspect ratio: {DescribeAspect(aspectWidth, aspectHeight)}",
+                    CardAlt,
+                    Accent,
+                    Text))
+            {
+                (aspectWidth, aspectHeight) = NextAspect(aspectWidth, aspectHeight);
+            }
+
+            cursor.Space(ControlHubGap);
+        }
+        else
+        {
+            sensitivity = _ui.Slider(
+                "mouse-sensitivity", cursor.Take(46f), "Sensitivity",
+                current.Sensitivity, 0.20f, 3f, "0.00", CardAlt, Accent, Text);
+            cursor.Space(8f);
+        }
+
         var horizontalScale = _ui.Slider(
-            "mouse-horizontal-scale",
-            cursor.Take(46f),
-            "Horizontal scale",
-            currentSettings.HorizontalScale,
-            0.50f,
-            2f,
-            "0.00",
-            CardAlt,
-            Accent,
-            Text);
+            "mouse-horizontal-scale", cursor.Take(46f), "Horizontal scale",
+            current.HorizontalScale, 0.50f, 2f, "0.00", CardAlt, Accent, Text);
 
         cursor.Space(8f);
         var verticalScale = _ui.Slider(
-            "mouse-vertical-scale",
-            cursor.Take(46f),
-            "Vertical scale",
-            currentSettings.VerticalScale,
-            0.50f,
-            2f,
-            "0.00",
-            CardAlt,
-            Accent,
-            Text);
+            "mouse-vertical-scale", cursor.Take(46f), "Vertical scale",
+            current.VerticalScale, 0.50f, 2f, "0.00", CardAlt, Accent, Text);
 
         cursor.Space(ControlHubGap);
         var invertVertical = _ui.Toggle(
-            "mouse-invert-vertical",
-            cursor.Take(42f),
-            "Invert vertical",
-            currentSettings.InvertVertical,
-            CardAlt,
-            Accent,
-            Text);
+            "mouse-invert-vertical", cursor.Take(42f), "Invert vertical",
+            current.InvertVertical, CardAlt, Accent, Text);
 
         _mouseSettings = new MouseSettings(
             sensitivity,
             horizontalScale,
             verticalScale,
-            invertVertical).Normalize();
+            invertVertical,
+            mode,
+            mouseDpi,
+            cmPer360,
+            horizontalFov,
+            aspectWidth,
+            aspectHeight,
+            monitorCoefficient).Normalize();
 
         cursor.Space(ControlHubGap);
         DrawWrappedLabel(
@@ -593,7 +637,34 @@ public sealed partial class TrainerApplication
             cursor.Width,
             16,
             MutedText,
-            3);
+            5);
+    }
+
+    private static string DescribeAspect(float width, float height)
+    {
+        if (height <= 0f)
+        {
+            return "16:9";
+        }
+
+        var ratio = width / height;
+        foreach (var preset in AspectPresets)
+        {
+            if (Math.Abs((preset.Width / preset.Height) - ratio) < 0.001f)
+            {
+                return preset.Label;
+            }
+        }
+
+        return $"{width:0}:{height:0}";
+    }
+
+    private static (float Width, float Height) NextAspect(float width, float height)
+    {
+        var ratio = height <= 0f ? 16f / 9f : width / height;
+        var index = Array.FindIndex(AspectPresets, preset => Math.Abs((preset.Width / preset.Height) - ratio) < 0.001f);
+        var next = AspectPresets[(index + 1) % AspectPresets.Length];
+        return (next.Width, next.Height);
     }
 
     private void DrawDisplayPage(Rectangle bounds)
@@ -799,7 +870,20 @@ public sealed partial class TrainerApplication
     {
         var normalizedSettings = _mouseSettings.Normalize();
         var verticalDirection = normalizedSettings.InvertVertical ? "inverted" : "normal";
-        return $"Live aim scale: X {normalizedSettings.EffectiveHorizontalSensitivity:0.00}x, Y {Math.Abs(normalizedSettings.EffectiveVerticalSensitivity):0.00}x ({verticalDirection} vertical). During a run the game recenters raw mouse motion so you can tune feel without changing display scale.";
+        var inputSource = _rawMouseInput.IsAvailable
+            ? "raw, unaccelerated mouse input"
+            : "raylib mouse input (raw capture unavailable)";
+
+        if (normalizedSettings.Mode == AimResponseMode.Projected)
+        {
+            var verticalFov = ProjectedAimMath.VerticalFovDegrees(
+                normalizedSettings.HorizontalFovDegrees,
+                normalizedSettings.AspectWidth,
+                normalizedSettings.AspectHeight);
+            return $"Projected aim: {normalizedSettings.CentimetersPer360:0.0} cm/360 at {normalizedSettings.MouseDpi} DPI, {normalizedSettings.HorizontalFovDegrees:0} deg FOV ({DescribeAspect(normalizedSettings.AspectWidth, normalizedSettings.AspectHeight)} gives {verticalFov:0} deg vertical), {verticalDirection} vertical. Aim speeds up toward the edges like a real FPS. Reads {inputSource}. Monitor-distance coeff {normalizedSettings.MonitorDistanceCoefficient:0.00} is stored for future zoom/scope scenarios.";
+        }
+
+        return $"Linear aim scale: X {normalizedSettings.EffectiveHorizontalSensitivity:0.00}x, Y {Math.Abs(normalizedSettings.EffectiveVerticalSensitivity):0.00}x ({verticalDirection} vertical). Reads {inputSource}, so aim feel is free of Windows pointer acceleration and stays constant across sheet and display sizes.";
     }
 
     private bool WasCommittedSettingChange(string controlId, float previousValue, float nextValue)

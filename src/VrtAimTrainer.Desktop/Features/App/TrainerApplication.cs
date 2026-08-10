@@ -51,11 +51,15 @@ public sealed partial class TrainerApplication
     private AimSessionStateSnapshot _frameState;
     private Guid? _lastPersistedSessionId;
     private TrainerAppState? _lastPersistedAppState;
+    private readonly RawMouseInput _rawMouseInput = new();
     private ShellPage _activePage = ShellPage.Play;
     private MouseSettings _mouseSettings = MouseSettings.Default;
     private AimPoint _relativeAimCursorPosition;
+    private GameplayCursorMode _cursorMode = GameplayCursorMode.Free;
+    private double _aimYawDegrees;
+    private double _aimPitchDegrees;
+    private bool _aimAnglesValid;
     private bool _isExitPromptVisible;
-    private bool _isRelativeAimInputActive;
     private bool _shouldExit;
 
     private LoadedAimGamemode _activeGamemode => _workflowState.ActiveGamemode;
@@ -67,12 +71,6 @@ public sealed partial class TrainerApplication
     }
 
     private AimSessionSettings _activeSettings => _workflowState.ActiveSettings;
-
-    private bool _cursorHidden
-    {
-        get => _windowState.CursorHidden;
-        set => _windowState.CursorHidden = value;
-    }
 
     private LoadedAimGamemode _draftGamemode => _workflowState.DraftGamemode;
 
@@ -135,6 +133,7 @@ public sealed partial class TrainerApplication
         WindowIconLoader.TrySetWindowIcon();
         CaptureWindowedBounds();
         ApplyDisplayProfile(DisplayProfiles.Single(profile => profile.Id == _activeDisplayProfileId));
+        _rawMouseInput.Initialize();
         _runtimeHost.Start();
 
         try
@@ -146,11 +145,9 @@ public sealed partial class TrainerApplication
         }
         finally
         {
-            if (_cursorHidden)
-            {
-                Raylib.ShowCursor();
-            }
-
+            // Restore the window procedure before the window is destroyed.
+            _rawMouseInput.Dispose();
+            Raylib.EnableCursor();
             _runtimeHost.Stop();
             Raylib.CloseWindow();
         }
@@ -306,8 +303,13 @@ public sealed partial class TrainerApplication
     private void RunFrame()
     {
         var mousePosition = Raylib.GetMousePosition();
+
+        // While aiming, the OS cursor is locked and its position is meaningless for the shell UI,
+        // so feed the immediate-mode UI an off-screen point to avoid phantom hover highlights.
+        var lockedAim = !_isExitPromptVisible && _frameState.Phase == SessionPhase.InGame;
+        var uiMousePosition = lockedAim ? new Vector2(-1f, -1f) : mousePosition;
         _ui.BeginFrame(
-            mousePosition,
+            uiMousePosition,
             Raylib.IsMouseButtonPressed(MouseButton.Left),
             Raylib.IsMouseButtonDown(MouseButton.Left),
             Raylib.IsMouseButtonReleased(MouseButton.Left));
@@ -316,7 +318,7 @@ public sealed partial class TrainerApplication
 
         var layout = CreateShellLayout(Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
         var arenaTransform = CreateArenaRenderTransform(layout.ArenaViewportBounds);
-        var gameplayCursorPosition = ResolveGameplayCursorPosition(mousePosition, arenaTransform);
+        var gameplayCursorPosition = UpdateGameplayInput(mousePosition, arenaTransform);
 
         _runtimeHost.SetViewport(_logicalArenaViewportWidth, _logicalArenaViewportHeight);
         _runtimeHost.SetCursorPosition(gameplayCursorPosition);
@@ -327,7 +329,6 @@ public sealed partial class TrainerApplication
         }
 
         PersistCompletedSession();
-        UpdateCursorVisibility(mousePosition, arenaTransform);
 
         Raylib.BeginDrawing();
         try
