@@ -209,103 +209,8 @@ public sealed partial class TrainerApplication
 
         DrawSectionHeader(bounds, "Run Setup");
         var cursor = CreatePageCursor(bounds, introText, 16, 3);
-        var currentSettings = _draftSettings;
 
-        var cursorDiameter = _ui.Slider(
-            "cursor-size",
-            cursor.Take(46f),
-            "Cursor diameter",
-            _draftSettings.CursorDiameter,
-            5f,
-            100f,
-            "0.0",
-            CardAlt,
-            Accent,
-            Text);
-
-        cursor.Space(8f);
-        var scorePerHit = _ui.Slider(
-            "score-per-hit",
-            cursor.Take(46f),
-            "Score per hit",
-            (float)_draftSettings.ScorePerHit,
-            5f,
-            150f,
-            "0.0",
-            CardAlt,
-            Accent,
-            Text);
-
-        cursor.Space(8f);
-        var pressure = _ui.Slider(
-            "pressure",
-            cursor.Take(46f),
-            "Pressure",
-            (float)_draftSettings.Pressure,
-            5f,
-            150f,
-            "0.0",
-            CardAlt,
-            Accent,
-            Text);
-
-        cursor.Space(8f);
-        var startingHealth = _ui.Slider(
-            "starting-health",
-            cursor.Take(46f),
-            "Starting HP",
-            (float)_draftSettings.StartingHealth,
-            20f,
-            250f,
-            "0.0",
-            CardAlt,
-            Accent,
-            Text);
-
-        cursor.Space(8f);
-        var roundTimeSeconds = _ui.Slider(
-            "round-time",
-            cursor.Take(46f),
-            "Round time (s)",
-            (float)(_draftSettings.FixedDurationSeconds ?? 45d),
-            10f,
-            180f,
-            "0",
-            CardAlt,
-            Accent,
-            Text);
-
-        cursor.Space(8f);
-        var cheeseThreshold = _ui.Slider(
-            "cheese-threshold",
-            cursor.Take(46f),
-            "Cheese threshold (ms)",
-            (float)_draftSettings.CheeseThresholdMs,
-            2f,
-            250f,
-            "0.0",
-            CardAlt,
-            Accent,
-            Text);
-
-        _draftSettings = currentSettings with
-        {
-            CursorDiameter = cursorDiameter,
-            ScorePerHit = scorePerHit,
-            Pressure = pressure,
-            StartingHealth = startingHealth,
-            FixedDurationSeconds = roundTimeSeconds,
-            CheeseThresholdMs = cheeseThreshold,
-        };
-
-        var hasCommittedChange =
-            WasCommittedSettingChange("cursor-size", currentSettings.CursorDiameter, cursorDiameter) ||
-            WasCommittedSettingChange("score-per-hit", currentSettings.ScorePerHit, scorePerHit) ||
-            WasCommittedSettingChange("pressure", currentSettings.Pressure, pressure) ||
-            WasCommittedSettingChange("starting-health", currentSettings.StartingHealth, startingHealth) ||
-            WasCommittedSettingChange("round-time", currentSettings.FixedDurationSeconds ?? 45d, roundTimeSeconds) ||
-            WasCommittedSettingChange("cheese-threshold", currentSettings.CheeseThresholdMs, cheeseThreshold);
-        if (hasCommittedChange)
+        if (DrawSettingSliders(cursor, SettingGroup.Run))
         {
             ApplyDraftIfChanged();
         }
@@ -336,125 +241,18 @@ public sealed partial class TrainerApplication
 
     private void DrawSheetPage(Rectangle bounds)
     {
-        const string introText = "Edit live sheet geometry here. Slider changes apply when you release the handle.";
+        const string introText = "Edit live geometry here. Grid modes show grid controls; free-spawn modes show ball spread. Changes apply on release.";
 
         DrawSectionHeader(bounds, "Sheet");
         var cursor = CreatePageCursor(bounds, introText, 16, 3);
-        var currentSettings = _draftSettings;
 
-        var sheetWidth = _ui.Slider(
-            "sheet-width",
-            cursor.Take(46f),
-            "Sheet width",
-            _draftSettings.EffectiveSheetWidth,
-            700f,
-            1800f,
-            "0",
-            CardAlt,
-            Accent,
-            Text);
-
-        cursor.Space(8f);
-        var sheetHeight = _ui.Slider(
-            "sheet-height",
-            cursor.Take(46f),
-            "Sheet height",
-            _draftSettings.EffectiveSheetHeight,
-            700f,
-            1800f,
-            "0",
-            CardAlt,
-            Accent,
-            Text);
-
-        cursor.Space(8f);
-        var targetDiameter = _ui.Slider(
-            "target-size",
-            cursor.Take(46f),
-            "Ball size",
-            _draftSettings.TargetDiameter,
-            10f,
-            140f,
-            "0.0",
-            CardAlt,
-            Accent,
-            Text);
-
-        cursor.Space(8f);
-        var minimumSpawnDistance = _ui.Slider(
-            "spawn-safety",
-            cursor.Take(46f),
-            "Ball spread",
-            _draftSettings.MinimumSpawnDistance,
-            120f,
-            700f,
-            "0",
-            CardAlt,
-            Accent,
-            Text);
-
-        cursor.Space(8f);
-        var spawnInsetRatio = _ui.Slider(
-            "spawn-inset",
-            cursor.Take(46f),
-            "Edge padding",
-            _draftSettings.SpawnInsetRatio,
-            0.05f,
-            0.30f,
-            "0.00",
-            CardAlt,
-            Accent,
-            Text);
-
-        cursor.Space(8f);
-        var spawnTopPadding = _ui.Slider(
-            "spawn-top",
-            cursor.Take(46f),
-            "Top safe padding",
-            _draftSettings.SpawnTopPadding,
-            0f,
-            160f,
-            "0",
-            CardAlt,
-            Accent,
-            Text);
-
-        cursor.Space(8f);
-        var spawnBottomPadding = _ui.Slider(
-            "spawn-bottom",
-            cursor.Take(46f),
-            "Bottom safe padding",
-            _draftSettings.SpawnBottomPadding,
-            0f,
-            180f,
-            "0",
-            CardAlt,
-            Accent,
-            Text);
-
-        var updatedDraftSettings = currentSettings with
-        {
-            ArenaSize = MathF.Max(sheetWidth, sheetHeight),
-            SheetWidth = sheetWidth,
-            SheetHeight = sheetHeight,
-            TargetDiameter = targetDiameter,
-            MinimumSpawnDistance = minimumSpawnDistance,
-            SpawnInsetRatio = spawnInsetRatio,
-            SpawnTopPadding = spawnTopPadding,
-            SpawnBottomPadding = spawnBottomPadding,
-        };
+        var committed = DrawSettingSliders(cursor, SettingGroup.Geometry);
 
         cursor.Space(ControlHubGap);
         var (squareBounds, wideBounds) = cursor.TakePair(40f, 10f);
-        if (_ui.Button(
-                "sheet-square",
-                squareBounds,
-                "Square",
-                CardAlt,
-                Accent,
-                Text))
+        if (_ui.Button("sheet-square", squareBounds, "Square", CardAlt, Accent, Text))
         {
-            updatedDraftSettings = updatedDraftSettings with
+            _draftSettings = _draftSettings with
             {
                 ArenaSize = 1200f,
                 SheetWidth = 1200f,
@@ -463,17 +261,12 @@ public sealed partial class TrainerApplication
                 MinimumSpawnDistance = 300f,
                 SpawnInsetRatio = 1f / 6f,
             };
+            committed = true;
         }
 
-        if (_ui.Button(
-                "sheet-wide",
-                wideBounds,
-                "Wide",
-                CardAlt,
-                Positive,
-                Text))
+        if (_ui.Button("sheet-wide", wideBounds, "Wide", CardAlt, Positive, Text))
         {
-            updatedDraftSettings = updatedDraftSettings with
+            _draftSettings = _draftSettings with
             {
                 ArenaSize = 1450f,
                 SheetWidth = 1450f,
@@ -482,19 +275,10 @@ public sealed partial class TrainerApplication
                 MinimumSpawnDistance = 360f,
                 SpawnInsetRatio = 0.13f,
             };
+            committed = true;
         }
 
-        _draftSettings = updatedDraftSettings;
-
-        var hasCommittedChange =
-            WasCommittedSettingChange("sheet-width", currentSettings.EffectiveSheetWidth, sheetWidth) ||
-            WasCommittedSettingChange("sheet-height", currentSettings.EffectiveSheetHeight, sheetHeight) ||
-            WasCommittedSettingChange("target-size", currentSettings.TargetDiameter, targetDiameter) ||
-            WasCommittedSettingChange("spawn-safety", currentSettings.MinimumSpawnDistance, minimumSpawnDistance) ||
-            WasCommittedSettingChange("spawn-inset", currentSettings.SpawnInsetRatio, spawnInsetRatio) ||
-            WasCommittedSettingChange("spawn-top", currentSettings.SpawnTopPadding, spawnTopPadding) ||
-            WasCommittedSettingChange("spawn-bottom", currentSettings.SpawnBottomPadding, spawnBottomPadding);
-        if (hasCommittedChange)
+        if (committed)
         {
             ApplyDraftIfChanged();
         }
@@ -521,6 +305,51 @@ public sealed partial class TrainerApplication
             16,
             MutedText,
             3);
+    }
+
+    /// <summary>
+    /// Renders every schema parameter in <paramref name="group"/> that applies to the current draft as
+    /// a slider (so grid modes show grid controls and hide ball spread, etc.), updates the draft live,
+    /// and returns whether any slider was released with a changed value this frame.
+    /// </summary>
+    private bool DrawSettingSliders(VerticalFlowCursor cursor, SettingGroup group)
+    {
+        var original = _draftSettings;
+        var draft = original;
+        var committed = false;
+        var isFirst = true;
+
+        foreach (var parameter in AimSettingsSchema.ApplicableParameters(group, original))
+        {
+            if (!isFirst)
+            {
+                cursor.Space(8f);
+            }
+
+            isFirst = false;
+
+            var currentValue = parameter.Get(original);
+            var nextValue = _ui.Slider(
+                parameter.Key,
+                cursor.Take(46f),
+                parameter.Label,
+                currentValue,
+                parameter.Minimum,
+                parameter.Maximum,
+                parameter.Format,
+                CardAlt,
+                Accent,
+                Text);
+
+            draft = parameter.Set(draft, nextValue);
+            if (WasCommittedSettingChange(parameter.Key, currentValue, nextValue))
+            {
+                committed = true;
+            }
+        }
+
+        _draftSettings = draft;
+        return committed;
     }
 
     private static readonly (float Width, float Height, string Label)[] AspectPresets =
@@ -889,10 +718,5 @@ public sealed partial class TrainerApplication
     private bool WasCommittedSettingChange(string controlId, float previousValue, float nextValue)
     {
         return _ui.WasCommitted(controlId) && Math.Abs(previousValue - nextValue) > 0.001f;
-    }
-
-    private bool WasCommittedSettingChange(string controlId, double previousValue, double nextValue)
-    {
-        return _ui.WasCommitted(controlId) && Math.Abs(previousValue - nextValue) > 0.001d;
     }
 }
