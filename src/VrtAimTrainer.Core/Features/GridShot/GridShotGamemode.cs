@@ -5,13 +5,20 @@ namespace VrtAimTrainer.Core.Features.GridShot;
 public sealed class GridShotGamemode : IAimGamemode
 {
     private readonly AimSessionSettings _defaultSettings;
+    private readonly IReadOnlyList<GamemodePreset> _presets;
 
-    public GridShotGamemode(string id, string displayName, string description, AimSessionSettings defaultSettings)
+    public GridShotGamemode(
+        string id,
+        string displayName,
+        string description,
+        AimSessionSettings defaultSettings,
+        IReadOnlyList<GamemodePreset>? presets = null)
     {
         Id = id;
         DisplayName = displayName;
         Description = description;
         _defaultSettings = defaultSettings.Normalize();
+        _presets = presets ?? [];
     }
 
     public string Id { get; }
@@ -36,5 +43,10 @@ public sealed class GridShotGamemode : IAimGamemode
             new GridTargetProvider(randomSource),
             new LogarithmicPressureModel(),
             new CheeseCorrectedScoringRule());
+    }
+
+    public IReadOnlyList<GamemodePreset> CreatePresets()
+    {
+        return _presets;
     }
 }

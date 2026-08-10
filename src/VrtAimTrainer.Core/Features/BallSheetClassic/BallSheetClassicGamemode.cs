@@ -41,4 +41,67 @@ public sealed class BallSheetClassicGamemode : IAimGamemode
             new LogarithmicPressureModel(),
             new CheeseCorrectedScoringRule());
     }
+
+    public IReadOnlyList<GamemodePreset> CreatePresets()
+    {
+        var defaults = CreateDefaultSettings();
+        return
+        [
+            new GamemodePreset(
+                "vrt-reactive-wide",
+                "VRT Reactive Wide",
+                "Wide-sheet reactive reps with a little more spread and tempo.",
+                defaults with
+                {
+                    SheetWidth = 1450f,
+                    SheetHeight = 980f,
+                    ArenaSize = 1450f,
+                    TargetDiameter = 58f,
+                    MinimumSpawnDistance = 360f,
+                    ScorePerHit = 38d,
+                    Pressure = 58d,
+                    CheeseThresholdMs = 110d,
+                }),
+            new GamemodePreset(
+                "vrt-micro",
+                "Micro Corrections",
+                "Smaller targets and tighter punishment for cleaner micro-adjustments.",
+                defaults with
+                {
+                    CursorDiameter = 26f,
+                    TargetDiameter = 44f,
+                    MinimumSpawnDistance = 340f,
+                    Pressure = 64d,
+                    CheeseThresholdMs = 90d,
+                    SpawnInsetRatio = 0.14f,
+                }),
+            new GamemodePreset(
+                "smoothness-lanes",
+                "Smoothness Lanes",
+                "Larger travel lanes with lower pressure for smoother full-sheet tracking.",
+                defaults with
+                {
+                    SheetWidth = 1500f,
+                    SheetHeight = 1040f,
+                    ArenaSize = 1500f,
+                    TargetDiameter = 62f,
+                    MinimumSpawnDistance = 390f,
+                    Pressure = 46d,
+                    CheeseThresholdMs = 120d,
+                }),
+            new GamemodePreset(
+                "vrt-endurance",
+                "Endurance Builder",
+                "Longer reactive runs with more health and slightly softer punishment.",
+                defaults with
+                {
+                    StartingHealth = 150d,
+                    Pressure = 44d,
+                    TargetDiameter = 66f,
+                    MinimumSpawnDistance = 280f,
+                    CheeseThresholdMs = 125d,
+                    FixedDurationSeconds = 60d,
+                }),
+        ];
+    }
 }

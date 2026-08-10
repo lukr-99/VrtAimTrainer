@@ -6,6 +6,30 @@ namespace VrtAimTrainer.Core.Tests.Features.BallSheetClassic;
 public sealed class BallSheetClassicGamemodePluginTests
 {
     [Fact]
+    public void Gamemodes_ShipTheirOwnPresets()
+    {
+        var gamemodes = new BallSheetClassicGamemodePlugin()
+            .CreateGamemodes()
+            .ToDictionary(gamemode => gamemode.Id);
+
+        // Presets are now owned by the modes themselves (no host-side switch).
+        Assert.Equal(4, gamemodes["ballsheet-classic"].CreatePresets().Count);
+        Assert.Equal(3, gamemodes["vrt-speed"].CreatePresets().Count);
+        Assert.Equal(2, gamemodes["gridshot-3x3-quick"].CreatePresets().Count);
+        Assert.Equal(2, gamemodes["gridshot-5x5-quick"].CreatePresets().Count);
+        Assert.Equal(2, gamemodes["gridshot-5x5-triple"].CreatePresets().Count);
+
+        var ballsheet = gamemodes["ballsheet-classic"];
+        var defaults = ballsheet.CreateDefaultSettings().Normalize();
+        Assert.All(
+            ballsheet.CreatePresets(),
+            preset => Assert.NotEqual(defaults, preset.Settings.Normalize()));
+        Assert.Equal(
+            ballsheet.CreatePresets().Count,
+            ballsheet.CreatePresets().Select(preset => preset.Id).Distinct().Count());
+    }
+
+    [Fact]
     public void CreateController_ReportsMatchingGamemodeIdentity()
     {
         var plugin = new BallSheetClassicGamemodePlugin();

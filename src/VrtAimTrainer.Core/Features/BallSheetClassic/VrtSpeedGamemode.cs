@@ -41,4 +41,48 @@ public sealed class VrtSpeedGamemode : IAimGamemode
             new LogarithmicPressureModel(),
             new CheeseCorrectedScoringRule());
     }
+
+    public IReadOnlyList<GamemodePreset> CreatePresets()
+    {
+        var defaults = CreateDefaultSettings();
+        return
+        [
+            new GamemodePreset(
+                "close-burst",
+                "Close Burst",
+                "Faster short-range spam for cleanup speed and tempo control.",
+                defaults with
+                {
+                    TargetDiameter = 54f,
+                    MinimumSpawnDistance = 150f,
+                    Pressure = 74d,
+                    CheeseThresholdMs = 72d,
+                    FixedDurationSeconds = 25d,
+                }),
+            new GamemodePreset(
+                "micro-rush",
+                "Micro Rush",
+                "Smaller targets and higher pace for close-quarters micro corrections.",
+                defaults with
+                {
+                    CursorDiameter = 28f,
+                    TargetDiameter = 46f,
+                    MinimumSpawnDistance = 170f,
+                    Pressure = 78d,
+                    CheeseThresholdMs = 68d,
+                    FixedDurationSeconds = 25d,
+                }),
+            new GamemodePreset(
+                "stable-30",
+                "Stable 30",
+                "Slightly softer punishment with the full 30-second round for repeatable reps.",
+                defaults with
+                {
+                    TargetDiameter = 58f,
+                    MinimumSpawnDistance = 200f,
+                    Pressure = 64d,
+                    CheeseThresholdMs = 86d,
+                }),
+        ];
+    }
 }
