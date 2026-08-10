@@ -27,6 +27,14 @@ public sealed class GridShotGamemode : IAimGamemode
 
     public IAimSessionController CreateController(int viewportWidth, int viewportHeight, AimSessionSettings settings, IRandomSource randomSource)
     {
-        return new GridShotSessionController(Id, DisplayName, viewportWidth, viewportHeight, settings, randomSource);
+        return new AimSessionEngine(
+            Id,
+            DisplayName,
+            viewportWidth,
+            viewportHeight,
+            settings,
+            new GridTargetProvider(randomSource),
+            new LogarithmicPressureModel(),
+            new CheeseCorrectedScoringRule());
     }
 }

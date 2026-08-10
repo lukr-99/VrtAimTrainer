@@ -1,47 +1,50 @@
 using VrtAimTrainer.Core.Features.Analytics;
-using VrtAimTrainer.Core.Features.Gameplay;
 
-namespace VrtAimTrainer.Core.Features.GridShot;
+namespace VrtAimTrainer.Core.Features.Gameplay;
 
-public sealed class GridShotSessionController : IAimSessionController
+/// <summary>
+/// The single session controller shared by every game mode. It owns run lifecycle, timing, health,
+/// scoring, reaction/analytics bookkeeping, and cursor-travel tracking, and delegates the
+/// mode-specific parts to an <see cref="ITargetProvider"/>, an <see cref="IPressureModel"/>, and an
+/// <see cref="IScoringRule"/>. Replaces the previously duplicated per-mode session controllers.
+/// </summary>
+public sealed class AimSessionEngine : IAimSessionController
 {
     private readonly SessionAnalyticsCalculator _analyticsCalculator = new();
-    private readonly GridShotCellLayoutBuilder _cellLayoutBuilder = new();
-    private readonly GridShotCellSelector _cellSelector = new();
     private readonly AimPlayfieldLayoutCalculator _layoutCalculator = new();
-    private readonly IRandomSource _randomSource;
-    private readonly List<int> _activeCellIndices = [];
+    private readonly ITargetProvider _targetProvider;
+    private readonly IPressureModel _pressureModel;
+    private readonly IScoringRule _scoringRule;
     private readonly List<HitSample> _samples = [];
-    private IReadOnlyList<AimPoint> _cellCenters = [];
     private AimPoint _lastCursorPosition;
-    private AimPoint _lastHitTargetPosition;
     private double _cursorTravelSinceLastHit;
     private double _lastFrameRunTimeSeconds;
     private double _lastHitRunTimeSeconds;
     private double _runStartedAtTimestamp;
     private bool _hasLastCursorPosition;
-    private bool _hasLastHitTargetPosition;
 
-    public GridShotSessionController(
+    public AimSessionEngine(
         string gamemodeId,
         string displayName,
         int viewportWidth,
         int viewportHeight,
         AimSessionSettings settings,
-        IRandomSource randomSource)
+        ITargetProvider targetProvider,
+        IPressureModel pressureModel,
+        IScoringRule scoringRule)
     {
         GamemodeId = gamemodeId;
         DisplayName = displayName;
-        _randomSource = randomSource;
+        _targetProvider = targetProvider;
+        _pressureModel = pressureModel;
+        _scoringRule = scoringRule;
 
         var normalizedSettings = settings.Normalize();
         var layout = _layoutCalculator.Create(viewportWidth, viewportHeight, normalizedSettings);
-        State = new AimSessionState(
-            normalizedSettings,
-            layout,
-            new TargetSnapshot(layout.ViewportBounds.Center, normalizedSettings.TargetDiameter));
+        _targetProvider.Initialize(layout, normalizedSettings);
+        State = new AimSessionState(normalizedSettings, layout, _targetProvider.ActiveTargets[0]);
+        State.SetTargets(_targetProvider.ActiveTargets);
 
-        RebuildCellCenters();
         Reset();
     }
 
@@ -62,8 +65,8 @@ public sealed class GridShotSessionController : IAimSessionController
         }
 
         State.Layout = _layoutCalculator.Create(viewportWidth, viewportHeight, State.Settings);
-        RebuildCellCenters();
-        SyncTargetsFromActiveCells();
+        _targetProvider.Reconfigure(State.Layout, State.Settings);
+        State.SetTargets(_targetProvider.ActiveTargets);
     }
 
     public void UpdateSettings(AimSessionSettings settings)
@@ -76,11 +79,11 @@ public sealed class GridShotSessionController : IAimSessionController
 
         var viewportWidth = (int)State.Layout.ViewportBounds.Width;
         var viewportHeight = (int)State.Layout.ViewportBounds.Height;
+
         State.Settings = normalizedSettings;
         State.Layout = _layoutCalculator.Create(viewportWidth, viewportHeight, normalizedSettings);
-        RebuildCellCenters();
-        TrimActiveCellsToGrid();
-        SyncTargetsFromActiveCells();
+        _targetProvider.Reconfigure(State.Layout, normalizedSettings);
+        State.SetTargets(_targetProvider.ActiveTargets);
 
         if (State.Phase != SessionPhase.InGame)
         {
@@ -108,7 +111,7 @@ public sealed class GridShotSessionController : IAimSessionController
             var deltaTime = State.ElapsedRunSeconds - _lastFrameRunTimeSeconds;
             _lastFrameRunTimeSeconds = State.ElapsedRunSeconds;
 
-            State.Health -= deltaTime * State.Settings.Pressure * Math.Log(1d + State.ElapsedRunSeconds);
+            State.Health = _pressureModel.Apply(State.Health, deltaTime, State.ElapsedRunSeconds, State.Settings);
             if (State.Settings.UsesFixedDuration)
             {
                 State.Health = Math.Max(0d, State.Health);
@@ -120,25 +123,19 @@ public sealed class GridShotSessionController : IAimSessionController
             }
         }
 
-        if (State.Phase == SessionPhase.PostGame)
+        if (State.Phase != SessionPhase.InGame)
         {
             return;
         }
 
-        if (State.Phase == SessionPhase.PreGame)
+        var hit = _targetProvider.TryRegisterHit(State.CursorPosition);
+        if (hit is null)
         {
             return;
         }
 
-        var hitTargetIndex = FindHitTargetIndex(State.CursorPosition);
-        if (hitTargetIndex < 0)
-        {
-            return;
-        }
-
-        var hitTarget = State.Targets[hitTargetIndex];
-        RegisterHit(hitTarget);
-        ReplaceHitTarget(hitTargetIndex);
+        RegisterHit(hit.Value);
+        State.SetTargets(_targetProvider.ActiveTargets);
     }
 
     public bool Start(double timestampSeconds)
@@ -154,6 +151,8 @@ public sealed class GridShotSessionController : IAimSessionController
         }
 
         StartRun(timestampSeconds);
+        _targetProvider.BeginRun();
+        State.SetTargets(_targetProvider.ActiveTargets);
         return true;
     }
 
@@ -187,15 +186,15 @@ public sealed class GridShotSessionController : IAimSessionController
     public void Reset()
     {
         _samples.Clear();
-        _activeCellIndices.Clear();
         _runStartedAtTimestamp = 0d;
         _lastHitRunTimeSeconds = 0d;
         _lastFrameRunTimeSeconds = 0d;
         _cursorTravelSinceLastHit = 0d;
         _hasLastCursorPosition = false;
-        _hasLastHitTargetPosition = false;
 
         State.Phase = SessionPhase.PreGame;
+        _targetProvider.Reset();
+        State.SetTargets(_targetProvider.ActiveTargets);
         State.Health = State.Settings.StartingHealth;
         State.Score = 0d;
         State.ElapsedRunSeconds = 0d;
@@ -205,77 +204,6 @@ public sealed class GridShotSessionController : IAimSessionController
         State.AverageHitsPerSecond = 0d;
         State.SettingsChangedDuringRun = false;
         State.LastCompletedResult = null;
-
-        SeedActiveTargets();
-    }
-
-    private void RebuildCellCenters()
-    {
-        _cellCenters = _cellLayoutBuilder.Build(State.Layout, State.Settings);
-    }
-
-    private void SeedActiveTargets()
-    {
-        _activeCellIndices.Clear();
-        _activeCellIndices.AddRange(_cellSelector.CreateInitialSelection(
-            _cellCenters.Count,
-            State.Settings.EffectiveConcurrentTargetCount,
-            _randomSource));
-        SyncTargetsFromActiveCells();
-    }
-
-    private void TrimActiveCellsToGrid()
-    {
-        if (_activeCellIndices.Count == 0)
-        {
-            return;
-        }
-
-        var maxCellCount = _cellCenters.Count;
-        _activeCellIndices.RemoveAll(index => index < 0 || index >= maxCellCount);
-
-        var maxConcurrentCount = Math.Min(maxCellCount, State.Settings.EffectiveConcurrentTargetCount);
-        while (_activeCellIndices.Count > maxConcurrentCount)
-        {
-            _activeCellIndices.RemoveAt(_activeCellIndices.Count - 1);
-        }
-
-        while (_activeCellIndices.Count < maxConcurrentCount)
-        {
-            _activeCellIndices.Add(_cellSelector.PickReplacementCellIndex(
-                maxCellCount,
-                _activeCellIndices,
-                fallbackCellIndex: 0,
-                _randomSource));
-        }
-    }
-
-    private void SyncTargetsFromActiveCells()
-    {
-        if (_activeCellIndices.Count == 0)
-        {
-            SeedActiveTargets();
-            return;
-        }
-
-        var targets = _activeCellIndices
-            .Select(cellIndex => new TargetSnapshot(_cellCenters[cellIndex], State.Settings.TargetDiameter))
-            .ToArray();
-
-        State.SetTargets(targets);
-    }
-
-    private int FindHitTargetIndex(AimPoint cursorPosition)
-    {
-        for (var index = 0; index < State.Targets.Count; index++)
-        {
-            if (AimTargetHitTester.IsCursorInsideTarget(cursorPosition, State.Targets[index], State.Settings))
-            {
-                return index;
-            }
-        }
-
-        return -1;
     }
 
     private void StartRun(double timestampSeconds)
@@ -284,7 +212,7 @@ public sealed class GridShotSessionController : IAimSessionController
         _lastHitRunTimeSeconds = 0d;
         _lastFrameRunTimeSeconds = 0d;
         _cursorTravelSinceLastHit = 0d;
-        _hasLastHitTargetPosition = false;
+
         State.Phase = SessionPhase.InGame;
         State.Score = 0d;
         State.Health = State.Settings.StartingHealth;
@@ -295,23 +223,14 @@ public sealed class GridShotSessionController : IAimSessionController
         State.AverageHitsPerSecond = 0d;
         State.SettingsChangedDuringRun = false;
         State.LastCompletedResult = null;
-
-        SeedActiveTargets();
     }
 
-    private void RegisterHit(TargetSnapshot hitTarget)
+    private void RegisterHit(TargetHit hit)
     {
         var reactionTimeSeconds = State.ElapsedRunSeconds - _lastHitRunTimeSeconds;
-        var cheeseFactor = Math.Min(reactionTimeSeconds, State.Settings.CheeseThresholdSeconds) / State.Settings.CheeseThresholdSeconds;
-        var awardedScore = State.Settings.ScorePerHit * cheeseFactor;
+        var awardedScore = _scoringRule.Award(reactionTimeSeconds, State.Settings);
         var healthBeforeHit = State.Health;
         var scoreBeforeHit = State.Score;
-        var distanceFromPreviousTarget = _hasLastHitTargetPosition
-            ? AimPoint.Distance(_lastHitTargetPosition, hitTarget.Position)
-            : 0d;
-        var angleFromPreviousTarget = _hasLastHitTargetPosition
-            ? CalculateAngleFromPreviousTarget(_lastHitTargetPosition, hitTarget.Position)
-            : null;
 
         State.Score += awardedScore;
         State.Health += awardedScore;
@@ -326,34 +245,17 @@ public sealed class GridShotSessionController : IAimSessionController
             ElapsedSeconds: State.ElapsedRunSeconds,
             ReactionSeconds: reactionTimeSeconds,
             CheeseCorrectedScore: awardedScore,
-            TargetPosition: hitTarget.Position,
-            DistanceFromPreviousTarget: distanceFromPreviousTarget,
+            TargetPosition: hit.Position,
+            DistanceFromPreviousTarget: hit.DistanceFromPreviousTarget,
             CursorTravelDistance: _cursorTravelSinceLastHit,
-            AngleFromPreviousTargetDegrees: angleFromPreviousTarget,
+            AngleFromPreviousTargetDegrees: hit.AngleFromPreviousTargetDegrees,
             HealthBeforeHit: healthBeforeHit,
             HealthAfterHit: State.Health,
             ScoreBeforeHit: scoreBeforeHit,
             ScoreAfterHit: State.Score));
 
         _lastHitRunTimeSeconds = State.ElapsedRunSeconds;
-        _lastHitTargetPosition = hitTarget.Position;
-        _hasLastHitTargetPosition = true;
         _cursorTravelSinceLastHit = 0d;
-    }
-
-    private void ReplaceHitTarget(int hitTargetIndex)
-    {
-        var removedCellIndex = _activeCellIndices[hitTargetIndex];
-        _activeCellIndices.RemoveAt(hitTargetIndex);
-        _activeCellIndices.Insert(
-            hitTargetIndex,
-            _cellSelector.PickReplacementCellIndex(
-                _cellCenters.Count,
-                _activeCellIndices,
-                removedCellIndex,
-                _randomSource));
-
-        SyncTargetsFromActiveCells();
     }
 
     private void TrackCursorMovement(in AimFrameInput input)
@@ -371,19 +273,5 @@ public sealed class GridShotSessionController : IAimSessionController
     {
         return State.Settings.FixedDurationSeconds is double fixedDurationSeconds &&
                State.ElapsedRunSeconds >= fixedDurationSeconds;
-    }
-
-    private static double? CalculateAngleFromPreviousTarget(AimPoint previousTarget, AimPoint nextTarget)
-    {
-        var deltaX = nextTarget.X - previousTarget.X;
-        var deltaY = nextTarget.Y - previousTarget.Y;
-        if (Math.Abs(deltaX) < float.Epsilon && Math.Abs(deltaY) < float.Epsilon)
-        {
-            return null;
-        }
-
-        var angleRadians = Math.Atan2(deltaY, deltaX);
-        var angleDegrees = angleRadians * (180d / Math.PI);
-        return angleDegrees < 0d ? angleDegrees + 360d : angleDegrees;
     }
 }

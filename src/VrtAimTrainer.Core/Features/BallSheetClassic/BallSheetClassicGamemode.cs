@@ -31,6 +31,14 @@ public sealed class BallSheetClassicGamemode : IAimGamemode
 
     public IAimSessionController CreateController(int viewportWidth, int viewportHeight, AimSessionSettings settings, IRandomSource randomSource)
     {
-        return new BallSheetClassicSessionController(viewportWidth, viewportHeight, settings, randomSource);
+        return new AimSessionEngine(
+            Id,
+            DisplayName,
+            viewportWidth,
+            viewportHeight,
+            settings,
+            new FreeSpawnTargetProvider(randomSource),
+            new LogarithmicPressureModel(),
+            new CheeseCorrectedScoringRule());
     }
 }

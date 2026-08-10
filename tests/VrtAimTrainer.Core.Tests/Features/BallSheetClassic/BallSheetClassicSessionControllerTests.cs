@@ -9,11 +9,15 @@ public sealed class BallSheetClassicSessionControllerTests
     public void Start_BeginsRunAndScoresFirstHit()
     {
         var settings = new BallSheetClassicGamemode().CreateDefaultSettings();
-        var controller = new BallSheetClassicSessionController(
+        var controller = new AimSessionEngine(
+            "ballsheet-classic",
+            "BallSheet Classic",
             viewportWidth: 1600,
             viewportHeight: 900,
             settings: settings,
-            randomSource: new SequenceRandomSource(new[] { 0d, 0d, 1d, 1d }));
+            targetProvider: new FreeSpawnTargetProvider(new SequenceRandomSource(new[] { 0d, 0d, 1d, 1d })),
+            pressureModel: new LogarithmicPressureModel(),
+            scoringRule: new CheeseCorrectedScoringRule());
 
         var started = controller.Start(0d);
 
@@ -46,11 +50,15 @@ public sealed class BallSheetClassicSessionControllerTests
             FixedDurationSeconds = 5d,
         };
 
-        var controller = new BallSheetClassicSessionController(
+        var controller = new AimSessionEngine(
+            "ballsheet-classic",
+            "BallSheet Classic",
             viewportWidth: 1600,
             viewportHeight: 900,
             settings: settings,
-            randomSource: new SequenceRandomSource(new[] { 0d, 0d, 1d, 1d }));
+            targetProvider: new FreeSpawnTargetProvider(new SequenceRandomSource(new[] { 0d, 0d, 1d, 1d })),
+            pressureModel: new LogarithmicPressureModel(),
+            scoringRule: new CheeseCorrectedScoringRule());
 
         controller.Start(0d);
         controller.Update(new AimFrameInput(0.08d, controller.State.Target.Position));

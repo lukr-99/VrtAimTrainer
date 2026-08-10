@@ -29,13 +29,15 @@ public sealed class GridShotSessionControllerTests
             GridColumns: 5,
             ConcurrentTargetCount: 3);
 
-        var controller = new GridShotSessionController(
-            gamemodeId: "gridshot-5x5-triple",
-            displayName: "5x5 Triple",
+        var controller = new AimSessionEngine(
+            "gridshot-5x5-triple",
+            "5x5 Triple",
             viewportWidth: 1600,
             viewportHeight: 900,
             settings: settings,
-            randomSource: new SequenceRandomSource(new[] { 0.0d, 0.2d, 0.4d }));
+            targetProvider: new GridTargetProvider(new SequenceRandomSource(new[] { 0.0d, 0.2d, 0.4d })),
+            pressureModel: new LogarithmicPressureModel(),
+            scoringRule: new CheeseCorrectedScoringRule());
 
         Assert.Equal(3, controller.State.Targets.Count);
         Assert.Equal(3, controller.State.Targets.Select(target => target.Position).Distinct().Count());
@@ -63,13 +65,15 @@ public sealed class GridShotSessionControllerTests
             GridColumns: 3,
             ConcurrentTargetCount: 1);
 
-        var controller = new GridShotSessionController(
-            gamemodeId: "gridshot-3x3-quick",
-            displayName: "3x3 Quick",
+        var controller = new AimSessionEngine(
+            "gridshot-3x3-quick",
+            "3x3 Quick",
             viewportWidth: 1600,
             viewportHeight: 900,
             settings: settings,
-            randomSource: new SequenceRandomSource(new[] { 0.0d, 0.5d, 0.9d }));
+            targetProvider: new GridTargetProvider(new SequenceRandomSource(new[] { 0.0d, 0.5d, 0.9d })),
+            pressureModel: new LogarithmicPressureModel(),
+            scoringRule: new CheeseCorrectedScoringRule());
 
         var started = controller.Start(0d);
 

@@ -1,9 +1,30 @@
 using VrtAimTrainer.Core.Features.BallSheetClassic;
+using VrtAimTrainer.Core.Features.Gameplay;
 
 namespace VrtAimTrainer.Core.Tests.Features.BallSheetClassic;
 
 public sealed class BallSheetClassicGamemodePluginTests
 {
+    [Fact]
+    public void CreateController_ReportsMatchingGamemodeIdentity()
+    {
+        var plugin = new BallSheetClassicGamemodePlugin();
+
+        foreach (var gamemode in plugin.CreateGamemodes())
+        {
+            var controller = gamemode.CreateController(
+                1600,
+                900,
+                gamemode.CreateDefaultSettings(),
+                new SystemRandomSource());
+
+            // Regression guard: VRT Speed previously reused the BallSheet controller and
+            // mislabeled its sessions as "ballsheet-classic".
+            Assert.Equal(gamemode.Id, controller.GamemodeId);
+            Assert.Equal(gamemode.DisplayName, controller.DisplayName);
+        }
+    }
+
     [Fact]
     public void CreateGamemodes_ExposesBuiltInModeCatalog()
     {
