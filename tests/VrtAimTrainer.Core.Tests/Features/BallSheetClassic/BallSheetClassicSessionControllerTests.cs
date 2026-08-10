@@ -8,7 +8,7 @@ public sealed class BallSheetClassicSessionControllerTests
     [Fact]
     public void Start_BeginsRunAndScoresFirstHit()
     {
-        var settings = new BallSheetClassicGamemode().CreateDefaultSettings();
+        var settings = BuiltInGamemodes.BallSheetClassic().CreateDefaultSettings();
         var controller = new AimSessionEngine(
             "ballsheet-classic",
             "BallSheet Classic",
@@ -45,7 +45,7 @@ public sealed class BallSheetClassicSessionControllerTests
     [Fact]
     public void Update_FinishesFixedDurationRunWhenTimerExpires()
     {
-        var settings = new BallSheetClassicGamemode().CreateDefaultSettings() with
+        var settings = BuiltInGamemodes.BallSheetClassic().CreateDefaultSettings() with
         {
             FixedDurationSeconds = 5d,
         };

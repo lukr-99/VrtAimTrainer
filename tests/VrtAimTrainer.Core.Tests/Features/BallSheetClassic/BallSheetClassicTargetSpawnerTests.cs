@@ -8,7 +8,7 @@ public sealed class BallSheetClassicTargetSpawnerTests
     [Fact]
     public void SpawnNextTarget_RespectsBoundsAndDistanceRule()
     {
-        var settings = new BallSheetClassicGamemode().CreateDefaultSettings();
+        var settings = BuiltInGamemodes.BallSheetClassic().CreateDefaultSettings();
         var layout = new BallSheetClassicLayoutCalculator().Create(1600, 900, settings);
         var spawner = new BallSheetClassicTargetSpawner();
         var previousTarget = new AimPoint(layout.SpawnBounds.Left, layout.SpawnBounds.Top);

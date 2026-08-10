@@ -10,7 +10,7 @@ public sealed class SessionAnalyticsCalculatorTests
     public void CreateResult_ComputesExpectedSummaryValues()
     {
         var calculator = new SessionAnalyticsCalculator();
-        var settings = new BallSheetClassicGamemode().CreateDefaultSettings();
+        var settings = BuiltInGamemodes.BallSheetClassic().CreateDefaultSettings();
         var samples = new[]
         {
             new HitSample(1.0d, 0.10d, 35d, new AimPoint(100f, 100f), 80d, 100d, null, 100d, 135d, 0d, 35d),

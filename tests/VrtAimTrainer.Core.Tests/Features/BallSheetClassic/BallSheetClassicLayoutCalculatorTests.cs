@@ -7,7 +7,7 @@ public sealed class BallSheetClassicLayoutCalculatorTests
     [Fact]
     public void Create_FitsRectangularSheetIntoViewport()
     {
-        var settings = new BallSheetClassicGamemode().CreateDefaultSettings() with
+        var settings = BuiltInGamemodes.BallSheetClassic().CreateDefaultSettings() with
         {
             SheetWidth = 1400f,
             SheetHeight = 900f,

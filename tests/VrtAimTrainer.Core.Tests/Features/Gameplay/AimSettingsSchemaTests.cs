@@ -6,7 +6,7 @@ namespace VrtAimTrainer.Core.Tests.Features.Gameplay;
 
 public sealed class AimSettingsSchemaTests
 {
-    private static AimSessionSettings FreeSpawnSettings => new BallSheetClassicGamemode().CreateDefaultSettings();
+    private static AimSessionSettings FreeSpawnSettings => BuiltInGamemodes.BallSheetClassic().CreateDefaultSettings();
 
     private static AimSessionSettings GridSettings => FreeSpawnSettings with
     {
