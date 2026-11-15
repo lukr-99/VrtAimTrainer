@@ -10,4 +10,5 @@ public enum ShellPage
     Sheet = 5,
     Display = 6,
     Analytics = 7,
+    About = 8,
 }
