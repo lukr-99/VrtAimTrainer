@@ -21,6 +21,7 @@ public sealed partial class TrainerApplication
                 (ShellPage.Sheet, "Sheet"),
                 (ShellPage.Display, "Display"),
                 (ShellPage.Analytics, "Analytics"),
+                (ShellPage.About, "About"),
             };
 
         var gap = 8f;
@@ -103,6 +104,9 @@ public sealed partial class TrainerApplication
                 break;
             case ShellPage.Analytics:
                 DrawAnalyticsPage(bounds);
+                break;
+            case ShellPage.About:
+                DrawAboutPage(bounds);
                 break;
         }
     }
