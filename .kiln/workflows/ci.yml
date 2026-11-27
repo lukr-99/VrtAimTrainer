@@ -1,0 +1,37 @@
+# Local (Kiln) CI for VrtAimTrainer. The repository has no GitHub workflow, so this runs the build and test
+# commands from the README on Linux:
+#   dotnet build .\VrtAimTrainer.slnx
+#   dotnet test .\VrtAimTrainer.slnx
+# Left out: the Windows publish and install scripts (tools/install), which are release steps.
+# Run it with:  kiln run .kiln/workflows/ci.yml --repo .
+name: CI
+
+on:
+  workflow_dispatch:
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+jobs:
+  build-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/dotnet/sdk:10.0
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      # global.json pins 10.0.201 with rollForward latestPatch, but the image has a newer feature band (10.0.4xx).
+      # Roll forward to the newer band in this container's copy of the repository only.
+      - name: Allow the image's SDK
+        run: sed -i 's/"latestPatch"/"latestFeature"/' global.json
+
+      - name: Restore
+        run: dotnet restore VrtAimTrainer.slnx
+
+      - name: Build
+        run: dotnet build VrtAimTrainer.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test VrtAimTrainer.slnx -c Release --no-build
